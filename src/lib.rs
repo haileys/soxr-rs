@@ -1,5 +1,6 @@
 #![no_std]
 
+pub mod buffer;
 pub mod error;
 pub mod format;
 pub mod params;
@@ -57,7 +58,13 @@ impl<Format: IoFormat> Soxr<Format> {
         quality: QualitySpec,
         runtime: RuntimeSpec,
     ) -> Result<Self, Error> {
-        let io = Format::io_spec(1.0);
+        let io = sys::soxr_io_spec {
+            itype: Format::datatype(),
+            otype: Format::datatype(),
+            scale: 1.0,
+            e: null_mut(),
+            flags: 0,
+        };
 
         let channels = c_uint::try_from(Format::channels())
             .map_err(|_| error::CHANNEL_COUNT_TOO_LARGE)?;
@@ -94,18 +101,18 @@ impl<Format: IoFormat> Soxr<Format> {
 
     /// Process audio through the sampler. Once finished, call `drain` until
     /// it returns `0``.
-    pub fn process(&mut self, input: &Format::Buffer, output: &mut Format::Buffer)
+    pub fn process<'a>(&mut self, input: &Format::Input<'a>, output: &mut Format::Output<'a>)
         -> Result<Processed, Error>
     {
-        let input_len = Format::frame_count(input);
-        let output_len = Format::frame_count(output);
+        let input_len = Format::input_len(input);
+        let output_len = Format::output_len(output);
 
         let mut input_consumed = 0;
         let mut output_produced = 0;
 
         unsafe {
-            let input_ptr = Format::buffer_ptr(input);
-            let output_ptr = Format::buffer_mut_ptr(output);
+            let input_ptr = Format::input_ptr(input);
+            let output_ptr = Format::output_ptr(output);
 
             Error::check(sys::soxr_process(
                 self.as_ptr(),
@@ -126,12 +133,12 @@ impl<Format: IoFormat> Soxr<Format> {
 
     /// Indicate to the resampler that the input stream has finished, and
     /// read remaining buffered data out of resampler
-    pub fn drain(&mut self, output: &mut Format::Buffer) -> Result<usize, Error> {
-        let output_len = Format::frame_count(output);
+    pub fn drain<'a>(&mut self, output: &mut Format::Output<'a>) -> Result<usize, Error> {
+        let output_len = Format::output_len(output);
         let mut output_produced = 0;
 
         unsafe {
-            let output_ptr = Format::buffer_mut_ptr(output);
+            let output_ptr = Format::output_ptr(output);
 
             Error::check(sys::soxr_process(
                 self.as_ptr(),
