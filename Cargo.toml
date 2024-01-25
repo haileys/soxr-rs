@@ -1,6 +1,6 @@
 [package]
 name = "soxr"
-version = "0.0.0"
+version = "0.6.0"
 edition = "2021"
 
 description = "Safe, comprehensive Rust bindings for libsoxr resampler"
