@@ -7,4 +7,3 @@ edition = "2021"
 bitflags = "2"
 bytemuck = { version = "1.14", features = ["derive", "must_cast", "min_const_generics"] }
 libsoxr-sys = "0.1"
-thiserror = "1"
