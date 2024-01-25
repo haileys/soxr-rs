@@ -25,11 +25,11 @@ unsafe impl Sample for i32 {
 }
 
 unsafe impl Sample for f32 {
-    const FORMAT: SampleFormat = SampleFormat::Int16;
+    const FORMAT: SampleFormat = SampleFormat::Float32;
 }
 
 unsafe impl Sample for f64 {
-    const FORMAT: SampleFormat = SampleFormat::Int16;
+    const FORMAT: SampleFormat = SampleFormat::Float64;
 }
 
 pub unsafe trait IoFormat {
