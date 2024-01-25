@@ -3,6 +3,13 @@ name = "soxr"
 version = "0.0.0"
 edition = "2021"
 
+description = "Safe, comprehensive Rust bindings for libsoxr resampler"
+license = "LGPL-2.1"
+repository = "https://github.com/haileys/soxr-rs"
+documentation = "https://docs.rs/soxr"
+keywords = ["audio", "sound", "soxr", "resampling", "nostd"]
+categories = ["no-std::no-alloc", "multimedia::audio", "api-bindings"]
+
 [dependencies]
 bitflags = "2"
 bytemuck = { version = "1.14", features = ["derive", "must_cast", "min_const_generics"] }
