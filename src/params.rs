@@ -18,9 +18,13 @@ pub enum QualityRecipe {
     Medium = 2,
     /// `SOXR_16_BITQ`
     Bits16 = 3,
+    /// `SOXR_20_BITQ` - 'High' quality, the default quality recipe
     Bits20 = 4,
+    /// `SOXR_24_BITQ`
     Bits24 = 5,
+    /// `SOXR_28_BITQ` - 'Very high' quality
     Bits28 = 6,
+    /// `SOXR_32_BITQ`
     Bits32 = 7,
 }
 
