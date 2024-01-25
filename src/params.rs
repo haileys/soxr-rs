@@ -200,7 +200,7 @@ impl RuntimeSpec {
     }
 
 
-    /// For DFT efficiency. [8,15]; typically 10
+    /// For DFT efficiency. \[8,15\]; typically 10
     pub fn log2_min_dft_size(&self) -> c_uint {
         self.raw.log2_min_dft_size
     }
@@ -217,7 +217,7 @@ impl RuntimeSpec {
     }
 
 
-    /// For DFT efficiency. [8,20]; typically 17
+    /// For DFT efficiency. \[8,20\]; typically 17
     pub fn log2_large_dft_size(&self) -> c_uint {
         self.raw.log2_large_dft_size
     }
