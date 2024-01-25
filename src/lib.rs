@@ -14,7 +14,7 @@ use core::ptr::null_mut;
 use libsoxr_sys as sys;
 
 use format::IoFormat;
-use params::{QualitySpec, RuntimeSpec};
+use params::{QualitySpec, RuntimeSpec, QualityRecipe};
 use raw::SoxrPtr;
 
 pub type ChannelCount = usize;
@@ -32,6 +32,19 @@ impl<Format: IoFormat> Soxr<Format> {
             input_rate,
             output_rate,
             QualitySpec::default(),
+            RuntimeSpec::default(),
+        )
+    }
+
+    /// Creates a new variable rate resampler instance using default values
+    /// for quality and runtime parameters
+    pub fn variable_rate(input_rate: f64, output_rate: f64)
+        -> Result<Self, Error>
+    {
+        Self::new_with_params(
+            input_rate,
+            output_rate,
+            QualitySpec::variable_rate(QualityRecipe::default()),
             RuntimeSpec::default(),
         )
     }

@@ -40,6 +40,12 @@ impl QualityRecipe {
     }
 }
 
+impl Default for QualityRecipe {
+    fn default() -> Self {
+        QualityRecipe::high()
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 #[repr(u8)]
 pub enum Rolloff {
