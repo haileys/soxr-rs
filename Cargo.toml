@@ -4,5 +4,7 @@ version = "0.0.0"
 edition = "2021"
 
 [dependencies]
+bitflags = "2.4.2"
 bytemuck = { version = "1.14", features = ["derive", "must_cast", "min_const_generics"] }
 libsoxr-sys = "0.1"
+thiserror = "1.0"

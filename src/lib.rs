@@ -7,34 +7,24 @@ pub mod raw;
 
 pub use error::Error;
 
-use core::ffi::{c_uint, c_void};
+use core::ffi::c_uint;
 use core::{marker::PhantomData, ptr::null};
 use core::ptr::null_mut;
 
 use libsoxr_sys as sys;
 
-use format::{Sample, SampleFormat};
+use format::IoFormat;
 use params::{QualitySpec, RuntimeSpec};
 use raw::SoxrPtr;
 
 pub type ChannelCount = usize;
 
-pub struct Soxr<In: Sample, Out: Sample, const N: ChannelCount> {
+pub struct Soxr<Format: IoFormat> {
     soxr: SoxrPtr,
-    _phantom: PhantomData<(In, Out)>,
+    _phantom: PhantomData<Format>,
 }
 
-impl<In: Sample, Out: Sample, const N: ChannelCount> Soxr<In, Out, N> {
-    fn io_spec() -> sys::soxr_io_spec {
-        sys::soxr_io_spec {
-            itype: interleaved::<In>(),
-            otype: interleaved::<Out>(),
-            scale: 1.0,
-            e: null_mut(),
-            flags: 0,
-        }
-    }
-
+impl<Format: IoFormat> Soxr<Format> {
     /// Creates a new resampler instance using default values for quality
     /// and runtime parameters
     pub fn new(input_rate: f64, output_rate: f64) -> Result<Self, Error> {
@@ -54,10 +44,9 @@ impl<In: Sample, Out: Sample, const N: ChannelCount> Soxr<In, Out, N> {
         quality: QualitySpec,
         runtime: RuntimeSpec,
     ) -> Result<Self, Error> {
-        let io = Self::io_spec();
-        let quality = quality.to_raw();
-        let runtime = runtime.to_raw();
-        let channels = c_uint::try_from(N)
+        let io = Format::io_spec(1.0);
+
+        let channels = c_uint::try_from(Format::channels())
             .map_err(|_| error::CHANNEL_COUNT_TOO_LARGE)?;
 
         let soxr = unsafe {
@@ -69,8 +58,8 @@ impl<In: Sample, Out: Sample, const N: ChannelCount> Soxr<In, Out, N> {
                 channels,
                 &mut error,
                 &io,
-                &quality,
-                &runtime,
+                quality.as_raw(),
+                runtime.as_raw(),
             );
 
             if ptr == null_mut() {
@@ -92,23 +81,18 @@ impl<In: Sample, Out: Sample, const N: ChannelCount> Soxr<In, Out, N> {
 
     /// Process audio through the sampler. Once finished, call `drain` until
     /// it returns `0``.
-    pub fn process(&mut self, input: &[[In; N]], output: &mut [[Out; N]])
+    pub fn process(&mut self, input: &Format::Buffer, output: &mut Format::Buffer)
         -> Result<Processed, Error>
     {
-        // soxr API uses frame count, so take len from slices before casting
-        // down to a flat slice:
-        let input_len = input.len();
-        let output_len = output.len();
-
-        let input: &[In] = bytemuck::must_cast_slice(input);
-        let output: &mut [Out] = bytemuck::must_cast_slice_mut(output);
+        let input_len = Format::frame_count(input);
+        let output_len = Format::frame_count(output);
 
         let mut input_consumed = 0;
         let mut output_produced = 0;
 
         unsafe {
-            let input_ptr: *const c_void = input.as_ptr().cast();
-            let output_ptr: *mut c_void = output.as_mut_ptr().cast();
+            let input_ptr = Format::buffer_ptr(input);
+            let output_ptr = Format::buffer_mut_ptr(output);
 
             Error::check(sys::soxr_process(
                 self.as_ptr(),
@@ -129,13 +113,12 @@ impl<In: Sample, Out: Sample, const N: ChannelCount> Soxr<In, Out, N> {
 
     /// Indicate to the resampler that the input stream has finished, and
     /// read remaining buffered data out of resampler
-    pub fn drain(&mut self, output: &mut [[Out; N]]) -> Result<usize, Error> {
-        let output_len = output.len();
-        let output: &mut [Out] = bytemuck::must_cast_slice_mut(output);
+    pub fn drain(&mut self, output: &mut Format::Buffer) -> Result<usize, Error> {
+        let output_len = Format::frame_count(output);
         let mut output_produced = 0;
 
         unsafe {
-            let output_ptr: *mut c_void = output.as_mut_ptr().cast();
+            let output_ptr = Format::buffer_mut_ptr(output);
 
             Error::check(sys::soxr_process(
                 self.as_ptr(),
@@ -154,18 +137,33 @@ impl<In: Sample, Out: Sample, const N: ChannelCount> Soxr<In, Out, N> {
     pub fn clear(&mut self) -> Result<(), Error> {
         unsafe { Error::check(sys::soxr_clear(self.as_ptr())) }
     }
+
+    /// Change the resampler's input and output sample rates, smoothly
+    /// changing over `slew_len` frames. Set `slew_len` to 0 to change
+    /// rates immediately.
+    pub fn set_rates(&mut self, input_rate: f64, output_rate: f64, slew_len: usize)
+        -> Result<(), Error>
+    {
+        self.set_io_ratio(input_rate / output_rate, slew_len)
+    }
+
+    /// Change the resampler's input/output sample ratio, smoothly changing
+    /// over `slew_len` frames. Set `slew_len` to 0 to change rates
+    /// immediately.
+    pub fn set_io_ratio(&mut self, ratio: f64, slew_len: usize)
+        -> Result<(), Error>
+    {
+        unsafe {
+            Error::check(sys::soxr_set_io_ratio(
+                self.as_ptr(),
+                ratio,
+                slew_len,
+            ))
+        }
+    }
 }
 
 pub struct Processed {
     pub input_frames: usize,
     pub output_frames: usize,
-}
-
-fn interleaved<S: Sample>() -> sys::soxr_datatype_t {
-    match S::FORMAT {
-        SampleFormat::Int16 => sys::SOXR_INT16_I,
-        SampleFormat::Int32 => sys::SOXR_INT32_I,
-        SampleFormat::Float32 => sys::SOXR_FLOAT32_I,
-        SampleFormat::Float64 => sys::SOXR_FLOAT64_I,
-    }
 }
